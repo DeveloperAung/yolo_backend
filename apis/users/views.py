@@ -9,7 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .permissions import IsAdminUserOnly, IsAdminOrInstructor
-from .serializers import UserSerializer, UserCreateSerializer, CustomTokenObtainPairSerializer
+from .serializers import UserSerializer, UserCreateSerializer, CustomTokenObtainPairSerializer, UserRegisterSerializer, \
+    UserLoginSerializer, PasswordChangeSerializer
 import logging
 
 from apis.core.utlis import api_response
@@ -158,6 +159,55 @@ class UserDetailView(RetrieveAPIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class RegisterAPIView(APIView):
+    def post(self, request):
+        serializer = UserRegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "User registered successfully",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(
+            {
+                "status": "error",
+                "message": "Registration failed",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class LoginAPIView(APIView):
+    def post(self, request):
+        serializer = UserLoginSerializer(data=request.data)
+        if serializer.is_valid():
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Login successful",
+                    "data": {
+                        "username": serializer.validated_data["username"],
+                        "access_token": serializer.validated_data["access"],
+                        "refresh_token": serializer.validated_data["refresh"],
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {
+                "status": "error",
+                "message": "Invalid credentials",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
 class UserCreateView(APIView):
     """
     API to create a new user. Only accessible by admins.
@@ -229,6 +279,33 @@ class UserUpdateView(APIView):
             "message": "Failed to update user.",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordChangeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Password changed successfully",
+                    "data": None
+                },
+                status=status.HTTP_200_OK
+            )
+
+        print(serializer.errors)
+        return Response(
+            {
+                "status": "error",
+                "message": "Password change failed",
+                "errors": serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class InstructorListView(APIView):

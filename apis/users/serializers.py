@@ -1,6 +1,10 @@
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from .models import User, Profile
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.password_validation import validate_password
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -73,3 +77,89 @@ class UserCreateSerializer(serializers.ModelSerializer):
             Profile.objects.create(user=user, **profile_data)
 
         return user
+
+
+User = get_user_model()
+
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+    confirm_password = serializers.CharField(write_only=True)
+    phone_number = serializers.CharField(write_only=True, required=False)
+    address = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'confirm_password', 'role', 'phone_number', 'address']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def validate(self, data):
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError({"password": "Passwords do not match"})
+        return data
+
+    def create(self, validated_data):
+        phone_number = validated_data.pop('phone_number', None)
+        address = validated_data.pop('address', None)
+
+        validated_data.pop('confirm_password')  # Remove password2 from data
+        user = User.objects.create_user(**validated_data)  # Create user
+
+        # Create profile if phone_number or address is provided
+        Profile.objects.create(user=user, phone_number=phone_number, address=address)
+
+        return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    access = serializers.CharField(read_only=True)
+    refresh = serializers.CharField(read_only=True)
+
+    def validate(self, data):
+        username = data.get("username")
+        password = data.get("password")
+        user = authenticate(username=username, password=password)
+
+        if user is None:
+            print("Invalid username or password")
+            raise serializers.ValidationError("Invalid username or password")
+
+        if user.is_locked:
+            raise serializers.ValidationError("Your account is locked. Contact admin.")
+
+        refresh = RefreshToken.for_user(user)
+        print('refresh')
+        return {
+            "username": user.username,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        }
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True, required=True)
+    new_password = serializers.CharField(write_only=True, required=True)
+    confirm_new_password = serializers.CharField(write_only=True, required=True)
+
+    def validate_new_password(self, value):
+        validate_password(value)  # Ensures password meets Django's security rules
+        return value
+
+    def validate(self, data):
+        user = self.context['request'].user
+
+        # Check if old password is correct
+        if not user.check_password(data['old_password']):
+            raise serializers.ValidationError({"old_password": "Old password is incorrect"})
+
+        # Check if new password and confirm password match
+        if data['new_password'] != data['confirm_new_password']:
+            raise serializers.ValidationError({"confirm_new_password": "Passwords do not match"})
+
+        return data
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['new_password'])
+        instance.save()
+        return instance
