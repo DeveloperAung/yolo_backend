@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'apis.users',
     'apis.courses',
+    'apis.cart',
 ]
 
 AUTH_USER_MODEL = 'users.User'
