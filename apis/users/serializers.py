@@ -7,6 +7,9 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 
 
+User = get_user_model()
+
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -79,9 +82,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
-User = get_user_model()
-
-
 class UserRegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
     phone_number = serializers.CharField(write_only=True, required=False)
@@ -110,7 +110,30 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'role', 'password', 'confirm_password']
+
+    def validate(self, data):
+        # Check if passwords match
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError({"confirm_password": "Passwords do not match"})
+
+        validate_password(data['password'])  # Validate password strength
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('confirm_password')  # Remove confirm_password before saving
+        user = User.objects.create_user(**validated_data)
+        return user
+
+
 class UserLoginSerializer(serializers.Serializer):
+    # id = serializers.IntegerField()
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
     access = serializers.CharField(read_only=True)
@@ -131,6 +154,7 @@ class UserLoginSerializer(serializers.Serializer):
         refresh = RefreshToken.for_user(user)
         print('refresh')
         return {
+            "id": user.id,
             "username": user.username,
             "access": str(refresh.access_token),
             "refresh": str(refresh)

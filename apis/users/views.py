@@ -10,12 +10,14 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .permissions import IsAdminUserOnly, IsAdminOrInstructor
 from .serializers import UserSerializer, UserCreateSerializer, CustomTokenObtainPairSerializer, UserRegisterSerializer, \
-    UserLoginSerializer, PasswordChangeSerializer
+    UserLoginSerializer, PasswordChangeSerializer, AdminUserCreateSerializer
 import logging
 
 from apis.core.utlis import api_response
 
 logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -98,9 +100,6 @@ class LogoutView(APIView):
             )
 
 
-User = get_user_model()
-
-
 class UserListView(ListAPIView):
     """
     Retrieve a list of all users.
@@ -127,17 +126,47 @@ class UserListView(ListAPIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class UserListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            users = User.objects.all().values("id", "username", "email", "role")
+            user_list = list(users)
+
+            return Response(
+                {
+                    "status": "success",
+                    "message": "User list retrieved successfully",
+                    "data": user_list
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            logger.exception("An unexpected error occurred in UserListView.", e)
+            return Response({
+                "status": "error",
+                "message": "An unexpected error occurred.",
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class UserDetailView(RetrieveAPIView):
     """
     Retrieve a single user's details.
     """
     queryset = User.objects.all()
+    # permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
+    #
+    # def get_object(self):
+    #     return self.request.user
 
     def retrieve(self, request, *args, **kwargs):
         try:
+
             # Retrieve the specific user
             instance = self.get_object()
+            print('start ', instance)
             logger.info(f"Retrieving details for user: {instance.username}")
             serializer = self.get_serializer(instance)
             return Response({
@@ -147,6 +176,7 @@ class UserDetailView(RetrieveAPIView):
             }, status=status.HTTP_200_OK)
         except NotFound as e:
             logger.error(f"User not found. Detail: {str(e)}")
+            print('user not found')
             return Response({
                 "status": "error",
                 "message": "User not found.",
@@ -185,12 +215,15 @@ class RegisterAPIView(APIView):
 class LoginAPIView(APIView):
     def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
+
         if serializer.is_valid():
+
             return Response(
                 {
                     "status": "success",
                     "message": "Login successful",
                     "data": {
+                        "id": serializer.validated_data["id"],
                         "username": serializer.validated_data["username"],
                         "access_token": serializer.validated_data["access"],
                         "refresh_token": serializer.validated_data["refresh"],
@@ -287,7 +320,10 @@ class PasswordChangeAPIView(APIView):
     def post(self, request):
         serializer = PasswordChangeSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
+            user = request.user
+            user.set_password(serializer.validated_data['new_password'])  # Update password manually
+            user.save()
+
             return Response(
                 {
                     "status": "success",
@@ -296,12 +332,51 @@ class PasswordChangeAPIView(APIView):
                 },
                 status=status.HTTP_200_OK
             )
-
-        print(serializer.errors)
         return Response(
             {
                 "status": "error",
                 "message": "Password change failed",
+                "errors": serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class AdminCreateUserAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Ensure only admins can create users
+        if request.user.role != "admin":
+            return Response(
+                {"status": "error", "message": "Only admins can create users"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = AdminUserCreateSerializer(data=request.data)
+        print('user data', request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "User created successfully",
+                    "data": {
+                        "id": user.id,
+                        "username": user.username,
+                        "email": user.email,
+                        "role": user.role,
+                        # "image": user.image
+                    }
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        print('error', serializer.errors)
+        return Response(
+            {
+                "status": "error",
+                "message": "User creation failed",
                 "errors": serializer.errors
             },
             status=status.HTTP_400_BAD_REQUEST

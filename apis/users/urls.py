@@ -11,9 +11,11 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', LogoutView.as_view(), name='logout'),
 
-    path('list/', UserListView.as_view(), name='user_list'),
+    # path('list/', UserListView.as_view(), name='user_list'),
+    path('list/', UserListAPIView.as_view(), name='user-list'),
     path('<int:pk>/', UserDetailView.as_view(), name='user_detail'),
     path('register/', RegisterAPIView.as_view(), name='user_register'),
+    path('admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
     path('create/', UserCreateView.as_view(), name='user_create'),
     path('update/<int:pk>/', UserUpdateView.as_view(), name='user_update'),
 
