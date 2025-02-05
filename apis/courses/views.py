@@ -90,59 +90,13 @@ class CourseCreateAPIView(CreateAPIView):
                 http_status=status.HTTP_400_BAD_REQUEST,
             )
 
-#
-# class CourseListCreateView(generics.ListCreateAPIView):
-#     queryset = Course.objects.all()
-#     serializer_class = CourseListSerializer
-#     permission_classes = [permissions.IsAuthenticated, IsAdminOrInstructor]  # Require authentication
-#
-#     def list(self, request, *args, **kwargs):
-#         try:
-#             queryset = self.get_queryset()
-#             total_courses = queryset.count()
-#             serializer = self.get_serializer(queryset, many=True)
-#             return api_response(
-#                 status="success",
-#                 message="Courses retrieved successfully.",
-#                 data={
-#                     "total_courses": total_courses,  # Include total count
-#                     "courses": serializer.data
-#                 },
-#                 http_status=status.HTTP_200_OK,
-#             )
-#         except Exception as e:
-#             return api_response(
-#                 status="error",
-#                 message="An unexpected error occurred while retrieving courses.",
-#                 errors={"detail": str(e)},
-#                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             )
-#
-#     def create(self, request, *args, **kwargs):
-#         try:
-#             serializer = self.get_serializer(data=request.data)
-#             serializer.is_valid(raise_exception=True)
-#             self.perform_create(serializer)
-#             return api_response(
-#                 status="success",
-#                 message="Course created successfully.",
-#                 data=serializer.data,
-#                 http_status=status.HTTP_201_CREATED,
-#             )
-#         except Exception as e:
-#             return api_response(
-#                 status="error",
-#                 message="Course creation failed.",
-#                 errors=serializer.errors if hasattr(serializer, 'errors') else {"detail": str(e)},
-#                 http_status=status.HTTP_400_BAD_REQUEST,
-#             )
-
 
 class CourseUpdateView(generics.UpdateAPIView):
     queryset = Course.objects.all()
-    serializer_class = CourseListSerializer
+    serializer_class = CourseCreateSerializer
     # permission_classes = [permissions.IsAuthenticated, IsAdminOrInstructor]
     parser_classes = [MultiPartParser, FormParser]  # Enable file upload parsing
+    permission_classes = [IsAuthenticated]
 
     def update(self, request, *args, **kwargs):
         try:
