@@ -25,6 +25,9 @@ class Course(BaseModel):
     cover_image = models.ImageField(upload_to=course_file_path, blank=True, null=True)
     demo_video = models.FileField(upload_to=course_file_path, blank=True, null=True)
     is_published = models.BooleanField(default=False)
+    is_on_sale = models.BooleanField(default=False)
+    price = models.DecimalField(decimal_places=2, max_digits=10)
+    sale_price = models.DecimalField(decimal_places=2, max_digits=10)
 
     def __str__(self):
         return self.title
