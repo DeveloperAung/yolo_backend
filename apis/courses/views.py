@@ -25,7 +25,7 @@ class CourseListAPIView(ListAPIView):
     serializer_class = CourseListSerializer
 
     def get_queryset(self):
-        queryset = Course.objects.all()
+        queryset = Course.objects.filter(is_active=True)
         return queryset
 
     def list(self, request, *args, **kwargs):

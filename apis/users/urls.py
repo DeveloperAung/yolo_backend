@@ -8,7 +8,7 @@ urlpatterns = [
     path('password/change/', PasswordChangeAPIView.as_view(), name='password-change'),
 
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', LogoutView.as_view(), name='logout'),
 
     # path('list/', UserListView.as_view(), name='user_list'),
