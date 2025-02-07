@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apis.users',
     'apis.courses',
     'apis.cart',
+    'apis.orders',
 ]
 
 AUTH_USER_MODEL = 'users.User'

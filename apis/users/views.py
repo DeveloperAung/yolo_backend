@@ -225,6 +225,7 @@ class LoginAPIView(APIView):
                     "data": {
                         "id": serializer.validated_data["id"],
                         "username": serializer.validated_data["username"],
+                        "role": serializer.validated_data["role"],
                         "access_token": serializer.validated_data["access"],
                         "refresh_token": serializer.validated_data["refresh"],
                     },

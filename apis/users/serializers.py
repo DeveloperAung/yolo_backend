@@ -136,6 +136,7 @@ class UserLoginSerializer(serializers.Serializer):
     # id = serializers.IntegerField()
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    role = serializers.CharField(read_only=True)
     access = serializers.CharField(read_only=True)
     refresh = serializers.CharField(read_only=True)
 
@@ -156,6 +157,7 @@ class UserLoginSerializer(serializers.Serializer):
         return {
             "id": user.id,
             "username": user.username,
+            "role": user.role,
             "access": str(refresh.access_token),
             "refresh": str(refresh)
         }
