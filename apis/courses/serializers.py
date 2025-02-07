@@ -36,6 +36,11 @@ class CourseCreateSerializer(serializers.ModelSerializer):
         ]
 
 
+class CourseDeleteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = ['is_active']
+
 # class CourseSerializer(serializers.ModelSerializer):
 #     lessons = LessonSerializer(many=True, read_only=True)  # Nested serializer for lessons
 #     instructor_username = serializers.SerializerMethodField()

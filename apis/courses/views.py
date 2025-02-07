@@ -14,7 +14,7 @@ from rest_framework.generics import (
 
 from .models import Course, Lesson
 from .permissions import ModelViewSetsPermission
-from .serializers import CourseListSerializer, LessonSerializer, CourseCreateSerializer
+from .serializers import CourseListSerializer, LessonSerializer, CourseCreateSerializer, CourseDeleteSerializer
 from apis.users.permissions import IsAdminOrInstructor
 from ..core.utlis import api_response
 
@@ -123,6 +123,31 @@ class CourseUpdateView(generics.UpdateAPIView):
                 "status": "error",
                 "message": "An error occurred while updating the course.",
                 "errors": {"detail": str(e)},
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CourseDeleteView(generics.UpdateAPIView):
+    queryset = Course.objects.all()
+    serializer_class = CourseDeleteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        # Automatically set is_active to False
+        request.data['is_active'] = False
+
+        response = super().patch(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            return Response({
+                "status": "success",
+                "message": "Course deactivated successfully.",
+                "data": response.data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "status": "error",
+                "message": "Failed to deactivate course.",
+                "errors": response.data
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
