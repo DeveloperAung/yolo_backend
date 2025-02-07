@@ -3,7 +3,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apis.cart.models import Cart
+from apis.cart.models import Cart, CartItem
 from apis.cart.serializers import AddToCartSerializer, CartItemSerializer
 from apis.core.utlis import api_response
 
@@ -72,3 +72,55 @@ class FetchUserCartView(generics.ListAPIView):
             message="Data retrieve successfully",
             data=serializer.data
         )
+
+
+class DeleteCartItemView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        cart_item_id = kwargs.get('cart_item_id')
+
+        try:
+            cart = Cart.objects.get(user=user)
+            cart_item = CartItem.objects.get(cart=cart, id=cart_item_id)
+            cart_item.delete()
+
+            return api_response(
+                status="success",
+                message="Course removed from cart successfully.",
+            )
+        except Cart.DoesNotExist:
+            return api_response(
+                status="error",
+                message="Cart does not exist.",
+                http_status=status.HTTP_404_NOT_FOUND
+            )
+        except CartItem.DoesNotExist:
+            return api_response(
+                status="error",
+                message="Course not found in cart.",
+                http_status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class DeleteAllCartItemView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+
+        try:
+            cart = Cart.objects.get(user=user)
+            cart.cart_item.all().delete()  # 🔥 Delete all items related to the user's cart
+
+            return api_response(
+                status="success",
+                message="All courses removed from cart successfully."
+            )
+        except Cart.DoesNotExist:
+            return api_response(
+                status="error",
+                message="Cart does not exist.",
+                http_status=status.HTTP_404_NOT_FOUND
+            )
