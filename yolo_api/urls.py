@@ -24,4 +24,5 @@ urlpatterns = [
     path('api/user/', include('apis.users.urls')),
     path('api/course/', include('apis.courses.urls')),
     path('api/cart/', include('apis.cart.urls')),
+    path('api/order/', include('apis.orders.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
