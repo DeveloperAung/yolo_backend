@@ -15,7 +15,7 @@ class AddToCartView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         # serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer = self.get_serializer(data=request.data, context={'request': request})
-        print('data', request.data)
+        # print('data', request.data)
         try:
             if serializer.is_valid():
                 cart_item = serializer.save()
