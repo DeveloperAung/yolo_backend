@@ -10,6 +10,7 @@ from apis.orders.serializers import CheckoutSerializer, OrderListSerializer, Ord
     OrderPaymentSerializer, OrderApprovalSerializer
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
+from django.shortcuts import get_object_or_404
 
 
 class CheckoutView(generics.CreateAPIView):
@@ -174,10 +175,16 @@ class OrderPaymentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def approve(self, request, pk=None):
+        # print('approve function')
         try:
-            payment = self.get_object()
+            payment = get_object_or_404(OrderPayment, pk=pk)
+            # print('payment', payment)
             payment.is_approved = True
             payment.save()
+
+            payment.order.status = 'accepted'
+            payment.order.save()
+
             return api_response(
                 status="success",
                 message="Payment approved successfully.",
@@ -219,4 +226,42 @@ class OrderApprovalViewSet(viewsets.ReadOnlyModelViewSet):
                 message="An unexpected error occurred while retrieving.",
                 errors={"detail": str(e)},
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=['post'], url_path='approve', permission_classes=[IsAuthenticated])
+    def approve_order(self, request, pk=None):
+        """
+        Custom action to approve an order.
+        """
+        try:
+            # Retrieve the order
+            order = get_object_or_404(Order, pk=pk, status='pending_acceptance')
+
+            # Update the order status to 'accepted'
+            order.status = 'accepted'
+            order.save()
+
+            # Approve the related payment
+            if hasattr(order, 'order_payment'):
+                order.order_payment.is_approved = True
+                order.order_payment.save()
+            else:
+                return api_response(
+                    status="error",
+                    message="Order payment not found.",
+                    http_status=status.HTTP_400_BAD_REQUEST
+                )
+
+            return api_response(
+                status="success",
+                message=f"Order {order.order_uuid} has been approved.",
+                http_status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            return api_response(
+                status="error",
+                message="An unexpected error occurred while approving the order.",
+                errors={"detail": str(e)},
+                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
