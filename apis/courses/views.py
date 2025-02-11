@@ -2,7 +2,7 @@ import logging
 
 from rest_framework import generics, permissions, status
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from rest_framework.generics import (
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class CourseListAPIView(ListAPIView):
     serializer_class = CourseListSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         queryset = Course.objects.filter(is_active=True)
@@ -33,7 +34,7 @@ class CourseListAPIView(ListAPIView):
             queryset = self.get_queryset()
             total_courses = queryset.count()
 
-            serializer = self.get_serializer(queryset, many=True)
+            serializer = self.get_serializer(queryset, many=True, context={'request': request})
             # print(serializer.data)
             return api_response(
                 status="success",
@@ -45,6 +46,7 @@ class CourseListAPIView(ListAPIView):
                 http_status=status.HTTP_200_OK,
             )
         except Exception as e:
+            print('error', e)
             return api_response(
                 status="error",
                 message="An unexpected error occurred while retrieving courses.",
