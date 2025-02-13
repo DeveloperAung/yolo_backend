@@ -5,7 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
 from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .permissions import IsAdminUserOnly, IsAdminOrInstructor
@@ -213,9 +213,13 @@ class RegisterAPIView(APIView):
 
 
 class LoginAPIView(APIView):
-    def post(self, request):
-        serializer = UserLoginSerializer(data=request.data)
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
+    def post(self, request):
+        print('inside post', request.data)
+        serializer = UserLoginSerializer(data=request.data)
+        print('request data', request.data)
         if serializer.is_valid():
 
             return Response(

@@ -30,13 +30,14 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
 
     current_user = get_current_user()
+
     def get_instructor_username(self, obj):
         return obj.instructor.username if obj.instructor else None
 
     def get_in_cart(self, obj):
         try:
             request = self.context.get('request')
-            if request and request.user.is_authenticated:
+            if request and hasattr(request, "user") and request.user.is_authenticated:
                 return Cart.objects.filter(user=request.user, cart_item__course=obj).exists()
             return False  # Default to False for unauthenticated users
         except Exception as e:
@@ -45,7 +46,7 @@ class CourseListSerializer(serializers.ModelSerializer):
 
     def get_is_purchased(self, obj):
         request = self.context.get('request')
-        if request and request.user.is_authenticated:
+        if request and hasattr(request, "user") and request.user.is_authenticated:
             items = OrderItem.objects.filter(order__user=request.user, course=obj, order__status='accepted')
             return items.exists()
         return False
