@@ -4,6 +4,7 @@ from rest_framework import generics, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from apis.core.utlis import api_response
+from apis.courses.models import Course
 from apis.courses.serializers import CourseListSerializer
 from apis.orders.models import Order, OrderPayment
 from apis.orders.serializers import CheckoutSerializer, OrderListSerializer, OrderItemListSerializer, \
@@ -64,6 +65,7 @@ class OrderListAPIView(generics.ListAPIView):
                         'total_items': order.items.all().count(),
                         'items': OrderItemListSerializer(order.items.all(), many=True).data
                     }
+                    # print('order-data', order_data)
                     data.append(order_data)
 
                 status_counts = orders.values('status').annotate(count=Count('status'))
@@ -197,6 +199,49 @@ class OrderPaymentViewSet(viewsets.ModelViewSet):
                 message="An unexpected error occurred on payment approval.",
                 errors={"detail": str(e)},
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class UserEnrolledCoursesAPIView(generics.ListAPIView):
+    serializer_class = CourseListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        try:
+            return Course.objects.filter(
+                enrolled_course__order__user=user,
+                enrolled_course__order__status='accepted'
+            ).distinct()
+        except Exception as e:
+            print(f"Error fetching enrolled courses: {e}")
+            return Course.objects.none()
+
+    def list(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_queryset()
+            if not queryset.exists():
+                return api_response(
+                    status="error",
+                    message="No enrolled courses found.",
+                    data=[],
+                    http_status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = self.get_serializer(queryset, many=True, context={'request': request})
+            return api_response(
+                status="success",
+                message="User enrolled courses retrieved successfully.",
+                data=serializer.data,
+                http_status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            return api_response(
+                status="error",
+                message="An error occurred while retrieving courses.",
+                errors={"detail": str(e)},
+                http_status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
