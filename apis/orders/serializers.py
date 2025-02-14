@@ -22,7 +22,7 @@ class CheckoutSerializer(serializers.Serializer):
             total_amount = sum(item.price for item in cart_items)
 
             # Create the order
-            order = Order.objects.create(user=user, total_amount=total_amount, status='completed')
+            order = Order.objects.create(user=user, total_amount=total_amount, status='pending_upload')
 
             # Create order items
             for item in cart_items:

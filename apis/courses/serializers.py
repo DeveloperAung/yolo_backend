@@ -20,13 +20,14 @@ class CourseListSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
     in_cart = serializers.SerializerMethodField()
     is_purchased = serializers.SerializerMethodField()
+    is_ordered = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = [
             'id', 'title', 'recommendation', 'total_duration', 'description', 'created_on', 'modified_on', 'instructor',
             'instructor_username', 'cover_image', 'demo_video', 'is_published', 'lessons', 'is_on_sale',
-            'price', 'sale_price', 'in_cart', 'is_purchased'
+            'price', 'sale_price', 'in_cart', 'is_purchased', 'is_ordered'
         ]
 
     current_user = get_current_user()
@@ -48,6 +49,13 @@ class CourseListSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, "user") and request.user.is_authenticated:
             items = OrderItem.objects.filter(order__user=request.user, course=obj, order__status='accepted')
+            return items.exists()
+        return False
+
+    def get_is_ordered(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, "user") and request.user.is_authenticated:
+            items = OrderItem.objects.filter(order__user=request.user, course=obj)
             return items.exists()
         return False
 
