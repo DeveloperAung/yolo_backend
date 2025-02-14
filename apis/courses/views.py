@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class CourseListAPIView(ListAPIView):
-    print('call course list')
+    # print('call course list')
     serializer_class = CourseListSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
@@ -36,7 +36,7 @@ class CourseListAPIView(ListAPIView):
             total_courses = queryset.count()
 
             serializer = self.get_serializer(queryset, many=True, context={'request': request})
-            print(serializer.data)
+            # print(serializer.data)
             return api_response(
                 status="success",
                 message="Courses retrieved successfully.",
