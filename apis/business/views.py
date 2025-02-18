@@ -1,16 +1,46 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 
-from .models import Business, Carousel
-from .serializers import BusinessSerializer, CarouselSerializer
+from .models import Business, Carousel, BankInfo, PaymentBankInfo
+from .serializers import BusinessSerializer, CarouselSerializer, BankInfoSerializer, PaymentBankInfoSerializer
 
 
 class BusinessViewSet(viewsets.ModelViewSet):
     queryset = Business.objects.filter(is_active=True).first()
     serializer_class = BusinessSerializer
+    # permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Business.objects.filter(is_active=True)
+
+    def retrieve(self, request, *args, **kwargs):
+        business = Business.objects.filter(is_active=True).first()
+        if not business:
+            return Response({"status": "error", "message": "No active business found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(business)
+        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+
+    def partial_update(self, request, *args, **kwargs):
+        business = Business.objects.filter(is_active=True).first()
+        if not business:
+            return Response({"status": "error", "message": "No active business found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(business, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": "success",
+                "message": "Business info updated successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "status": "error",
+            "message": "Failed to update business info",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CarouselViewSet(viewsets.ModelViewSet):
@@ -65,3 +95,37 @@ class CarouselViewSet(viewsets.ModelViewSet):
     #         return Response(serializer.data)
     #     print('errr', serializer.errors)
     #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BankInfoViewSet(viewsets.ModelViewSet):
+    queryset = BankInfo.objects.all()
+    serializer_class = BankInfoSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class PaymentBankInfoViewSet(ModelViewSet):
+    queryset = PaymentBankInfo.objects.filter(is_active=True)
+    serializer_class = PaymentBankInfoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Payment bank info created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Payment bank info updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.is_active = False
+        instance.save()
+        return Response({"message": "Payment bank info deactivated successfully"}, status=status.HTTP_200_OK)

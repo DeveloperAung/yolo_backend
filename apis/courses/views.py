@@ -1,10 +1,10 @@
 import logging
 
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, serializers, viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-
+from django.db import transaction
 from rest_framework.generics import (
     ListAPIView,
     RetrieveAPIView,
@@ -53,6 +53,32 @@ class CourseListAPIView(ListAPIView):
                 message="An unexpected error occurred while retrieving courses.",
                 errors={"detail": str(e)},
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class CourseRetrieveAPIView(RetrieveAPIView):
+    serializer_class = CourseListSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return Course.objects.filter(is_active=True)
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, context={'request': request})
+            return api_response(
+                status="success",
+                message="Course retrieved successfully.",
+                data=serializer.data,
+                http_status=status.HTTP_200_OK,
+            )
+        except Course.DoesNotExist:
+            return api_response(
+                status="error",
+                message="Course not found.",
+                http_status=status.HTTP_404_NOT_FOUND,
             )
 
 
@@ -158,7 +184,7 @@ class CourseDetailView(generics.RetrieveUpdateAPIView):
     """
     API to retrieve, update, or delete a course.
     """
-    queryset = Course.objects.all()
+    queryset = Course.objects.filter(is_active=True)
     serializer_class = CourseListSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrInstructor]  # Add custom permissions if needed
 
@@ -184,6 +210,42 @@ class LessonDetailView(generics.RetrieveUpdateAPIView):
     """
     API to retrieve, update, or delete a lesson.
     """
-    queryset = Lesson.objects.all()
+    queryset = Lesson.objects.filter(is_active=True)
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrInstructor]
+
+
+class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.filter(is_active=True)
+    serializer_class = LessonSerializer
+
+    def list(self, request, *args, **kwargs):
+        course_id = request.query_params.get('course', None)
+        if course_id:
+            queryset = Lesson.objects.filter(course_id=course_id, is_active=True)
+        else:
+            queryset = self.get_queryset()
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({"data": serializer.data})
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Lesson created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Lesson updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
+        return Response({"message": "Lesson deleted successfully"}, status=status.HTTP_200_OK)

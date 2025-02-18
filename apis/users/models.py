@@ -6,7 +6,7 @@ from apis.core.models import BaseModel
 
 
 def profile_image_path(instance, filename):
-    return "user/profile/avatar/{}/{}".format(instance.user.username, filename)
+    return "user/profile/avatar/{}/{}".format(instance.username, filename)
 
 
 class User(AbstractUser):
@@ -25,6 +25,8 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     avatar = models.ImageField(upload_to=profile_image_path, blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
 
 
 class Profile(BaseModel):

@@ -14,6 +14,23 @@ class LessonSerializer(serializers.ModelSerializer):
             'id', 'title', 'content', 'video', 'duration', 'is_demo', 'course', 'order'
         ]
 
+    def validate(self, data):
+        if 'title' in data and len(data['title']) < 3:
+            raise serializers.ValidationError({"title": "Title must be at least 3 characters long."})
+        return data
+
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
+
+    def update(self, instance, validated_data):
+        try:
+            return super().update(instance, validated_data)
+        except Exception as e:
+            raise serializers.ValidationError({"error": str(e)})
+
 
 class CourseListSerializer(serializers.ModelSerializer):
     instructor_username = serializers.SerializerMethodField()
