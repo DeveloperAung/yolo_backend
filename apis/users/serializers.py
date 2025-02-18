@@ -19,6 +19,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             "id": self.user.id,
             "username": self.user.username,
             "email": self.user.email,
+            "phone_number": self.user.phone_number,
             "role": self.user.role,  # Assuming role is a field on your User model
         }
 
@@ -46,7 +47,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'is_locked', 'profile']  # User fields + profile
+        fields = ['id', 'username', 'email', 'phone_number', 'role', 'avatar',
+                  'is_locked', 'profile', 'created_on', 'modified_on']
         read_only_fields = ['id']
 
 
@@ -60,7 +62,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'role', 'is_locked', 'phone_number', 'address']
+        fields = ['username', 'email', 'avatar', 'phone_number', 'password', 'role', 'is_locked', 'phone_number', 'address']
         extra_kwargs = {
             'password': {'write_only': True},  # Hide password in responses
         }
@@ -116,7 +118,7 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'role', 'password', 'confirm_password']
+        fields = ['username', 'email', 'phone_number', 'avatar', 'role', 'password', 'confirm_password']
 
     def validate(self, data):
         # Check if passwords match
@@ -139,6 +141,16 @@ class UserLoginSerializer(serializers.Serializer):
     role = serializers.CharField(read_only=True)
     access = serializers.CharField(read_only=True)
     refresh = serializers.CharField(read_only=True)
+    avatar = serializers.SerializerMethodField()  # ✅ Explicitly add avatar field
+
+    def get_avatar(self, obj):
+        """Returns the full avatar URL if available, otherwise None"""
+        user = self.context.get("user")  # ✅ Get user instance from context
+        if user and user.avatar:  # Ensure avatar exists
+            request = self.context.get("request")  # Get request context for absolute URL
+            return request.build_absolute_uri(user.avatar.url) if request else user.avatar.url
+        return None  # Return None if no avatar is set
+
 
     def validate(self, data):
         username = data.get("username")
@@ -146,20 +158,23 @@ class UserLoginSerializer(serializers.Serializer):
         user = authenticate(username=username, password=password)
 
         if user is None:
-            print("Invalid username or password")
+            # print("Invalid username or password")
             raise serializers.ValidationError("Invalid username or password")
 
         if user.is_locked:
             raise serializers.ValidationError("Your account is locked. Contact admin.")
 
         refresh = RefreshToken.for_user(user)
-        print('refresh')
+
+        self.context["user"] = user
+
         return {
             "id": user.id,
             "username": user.username,
             "role": user.role,
             "access": str(refresh.access_token),
-            "refresh": str(refresh)
+            "refresh": str(refresh),
+            "avatar": self.get_avatar(user),
         }
 
 

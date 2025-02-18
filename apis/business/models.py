@@ -15,6 +15,10 @@ def carousel_file_path(instance, filename):
     return "business/carousel/social/{}".format(filename)
 
 
+def bank_logo_path(instance, filename):
+    return "business/logo/bank/{}".format(filename)
+
+
 class Business(BaseModel):
     name = models.CharField(max_length=50)
     logo = models.ImageField(upload_to=logo_file_path, null=True)
@@ -33,6 +37,22 @@ class Carousel (BaseModel):
     def __str__(self):
         return self.title
 
+
+class BankInfo(BaseModel):
+    title = models.CharField(max_length=50)
+    logo = models.ImageField(upload_to=carousel_file_path, null=True)
+
+    def __str__(self):
+        return self.title
+
+
+class PaymentBankInfo(BaseModel):
+    bank = models.ForeignKey(BankInfo, on_delete=models.CASCADE, related_name='bank')
+    account_no = models.CharField(max_length=50, blank=True, null=True)
+    name = models.CharField(max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.bank} - {self.account_no} - {self.name}'
 
 # class SocialApp(BaseModel):
 #     name = models.CharField(max_length=50)

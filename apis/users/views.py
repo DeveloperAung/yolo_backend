@@ -12,6 +12,9 @@ from .permissions import IsAdminUserOnly, IsAdminOrInstructor
 from .serializers import UserSerializer, UserCreateSerializer, CustomTokenObtainPairSerializer, UserRegisterSerializer, \
     UserLoginSerializer, PasswordChangeSerializer, AdminUserCreateSerializer
 import logging
+from PIL import Image
+import io
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from apis.core.utlis import api_response
 
@@ -53,10 +56,14 @@ class LoginView(APIView):
             "id": user.id,
             "username": user.username,
             "email": user.email,
+            "contact": user.contact,
             "role": user.role,  # Assuming `role` is a field on your User model
+            "avatar": request.build_absolute_uri(user.avatar.url) if user.avatar else None,
+            "created_on": user.created_on,
+            "modified_on": user.modified_on,
         }
         logger.info(f"User {username} logged in successfully.")
-
+        print('avatar url', user_data['avatar'])
         return api_response(
             status="success",
             message="Login successful.",
@@ -131,9 +138,9 @@ class UserListAPIView(APIView):
 
     def get(self, request):
         try:
-            users = User.objects.all().values("id", "username", "email", "role")
+            users = User.objects.all().values("id", "username", "email", "phone_number", "role", "avatar")
             user_list = list(users)
-
+            print('user_list', user_list)
             return Response(
                 {
                     "status": "success",
@@ -169,6 +176,8 @@ class UserDetailView(RetrieveAPIView):
             print('start ', instance)
             logger.info(f"Retrieving details for user: {instance.username}")
             serializer = self.get_serializer(instance)
+            print('serializer data ', serializer.data)
+            print('serializer status ')
             return Response({
                 "status": "success",
                 "message": "User retrieved successfully.",
@@ -182,6 +191,7 @@ class UserDetailView(RetrieveAPIView):
                 "message": "User not found.",
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            print('exception', e)
             logger.exception("An unexpected error occurred in UserDetailView.", e)
             return Response({
                 "status": "error",
@@ -217,11 +227,11 @@ class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        print('inside post', request.data)
-        serializer = UserLoginSerializer(data=request.data)
+        # print('inside post', request.data)
+        serializer = UserLoginSerializer(data=request.data, context={"request": request})
         print('request data', request.data)
         if serializer.is_valid():
-
+            print('serializer data', serializer.data)
             return Response(
                 {
                     "status": "success",
@@ -232,6 +242,7 @@ class LoginAPIView(APIView):
                         "role": serializer.validated_data["role"],
                         "access_token": serializer.validated_data["access"],
                         "refresh_token": serializer.validated_data["refresh"],
+                        "avatar": serializer.get_avatar(serializer.validated_data["avatar"]),
                     },
                 },
                 status=status.HTTP_200_OK,
@@ -294,29 +305,48 @@ class UserUpdateView(APIView):
 
     def put(self, request, pk):
         try:
-            # Fetch the user to be updated
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
-            return Response({
-                "status": "error",
-                "message": "User not found."
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({"status": "error", "message": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Serialize and validate incoming data
-        serializer = UserSerializer(user, data=request.data, partial=True)  # Use `partial=True` for partial updates
+        # Merge request.data and request.FILES for file handling
+        # data = request.data.copy()
+        if "avatar" in request.FILES:
+            avatar_file = request.FILES["avatar"]
+            if avatar_file.size > 5 * 1024 * 1024:  # If file size > 5MB
+                avatar_file = self._resize_image(avatar_file)
+            request.FILES["avatar"] = avatar_file  # Replace with compressed image
+
+        serializer = UserSerializer(user, data=request.data, partial=True)
+
         if serializer.is_valid():
-            serializer.save()  # Save the updates
-            return Response({
-                "status": "success",
-                "message": "User updated successfully.",
-                "data": serializer.data
-            }, status=status.HTTP_200_OK)
+            serializer.save()
+            return Response({"status": "success", "message": "User updated successfully.", "data": serializer.data},
+                            status=status.HTTP_200_OK)
+        print('is not valid', serializer.errors)
+        return Response({"status": "error", "message": "Failed to update user.", "errors": serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({
-            "status": "error",
-            "message": "Failed to update user.",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def _resize_image(self, image_file):
+        """Resizes image to reduce file size if larger than 5MB."""
+        image = Image.open(image_file)
+        image = image.convert("RGB")  # Ensure it's in RGB mode
+
+        # Reduce quality & resize while maintaining aspect ratio
+        max_size = (1024, 1024)  # Resize to max 1024x1024 pixels
+        image.thumbnail(max_size)
+
+        # Save resized image into a memory buffer
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=75)  # Reduce quality to 75%
+        buffer.seek(0)
+
+        # Create a new InMemoryUploadedFile
+        new_image = InMemoryUploadedFile(
+            buffer, "ImageField", image_file.name, "image/jpeg", buffer.getbuffer().nbytes, None
+        )
+        return new_image
 
 
 class PasswordChangeAPIView(APIView):
