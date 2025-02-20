@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="E:\Django\YOLO\yolo_api\env"
+VIRTUAL_ENV="D:\2025_Projects\Flutter\yolo_backend\env"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
