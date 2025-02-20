@@ -78,7 +78,7 @@ class OrderPaymentSerializer(serializers.ModelSerializer):
 
 
 class OrderApprovalSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
+    items = OrderItemListSerializer(many=True, read_only=True)
     order_payment = OrderPaymentSerializer(many=True, read_only=True)  # Matches related_name in the model
 
     class Meta:

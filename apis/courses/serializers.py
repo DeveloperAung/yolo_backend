@@ -8,11 +8,13 @@ from ..users.serializers import UserSerializer
 
 
 class LessonSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Lesson
         fields = [
             'id', 'title', 'content', 'video', 'duration', 'is_demo', 'course', 'order'
         ]
+        read_only_fields = ['course']
 
     def validate(self, data):
         if 'title' in data and len(data['title']) < 3:
@@ -32,9 +34,15 @@ class LessonSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"error": str(e)})
 
 
+class LessonDeleteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ['is_active']
+
+
 class CourseListSerializer(serializers.ModelSerializer):
     instructor_username = serializers.SerializerMethodField()
-    lessons = LessonSerializer(many=True, read_only=True)
+    lessons = serializers.SerializerMethodField()
     in_cart = serializers.SerializerMethodField()
     is_purchased = serializers.SerializerMethodField()
     is_ordered = serializers.SerializerMethodField()
@@ -48,6 +56,11 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
 
     current_user = get_current_user()
+
+    def get_lessons(self, obj):
+        # Get only active lessons (is_active=True)
+        active_lessons = obj.lessons.filter(is_active=True)
+        return LessonSerializer(active_lessons, many=True).data
 
     def get_instructor_username(self, obj):
         return obj.instructor.username if obj.instructor else None

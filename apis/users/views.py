@@ -7,7 +7,8 @@ from rest_framework import status
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from django.db.models import F
+from django.conf import settings
 from .permissions import IsAdminUserOnly, IsAdminOrInstructor
 from .serializers import UserSerializer, UserCreateSerializer, CustomTokenObtainPairSerializer, UserRegisterSerializer, \
     UserLoginSerializer, PasswordChangeSerializer, AdminUserCreateSerializer
@@ -138,8 +139,15 @@ class UserListAPIView(APIView):
 
     def get(self, request):
         try:
-            users = User.objects.all().values("id", "username", "email", "phone_number", "role", "avatar")
+            users = User.objects.all().annotate(
+                avatar_url=F("avatar")  # Use F() to ensure we get the field value
+            ).values("id", "username", "email", "phone_number", "role", "avatar")
             user_list = list(users)
+
+            for user in user_list:
+                if user["avatar"]:
+                    user["avatar"] = request.build_absolute_uri(settings.MEDIA_URL + user["avatar"])
+
             print('user_list', user_list)
             return Response(
                 {
@@ -173,11 +181,9 @@ class UserDetailView(RetrieveAPIView):
 
             # Retrieve the specific user
             instance = self.get_object()
-            print('start ', instance)
             logger.info(f"Retrieving details for user: {instance.username}")
             serializer = self.get_serializer(instance)
-            print('serializer data ', serializer.data)
-            print('serializer status ')
+
             return Response({
                 "status": "success",
                 "message": "User retrieved successfully.",
@@ -200,6 +206,8 @@ class UserDetailView(RetrieveAPIView):
 
 
 class RegisterAPIView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = UserRegisterSerializer(data=request.data)
         if serializer.is_valid():

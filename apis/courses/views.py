@@ -14,7 +14,8 @@ from rest_framework.generics import (
 
 from .models import Course, Lesson
 from .permissions import ModelViewSetsPermission
-from .serializers import CourseListSerializer, LessonSerializer, CourseCreateSerializer, CourseDeleteSerializer
+from .serializers import CourseListSerializer, LessonSerializer, CourseCreateSerializer, CourseDeleteSerializer, \
+    LessonDeleteSerializer
 from apis.users.permissions import IsAdminOrInstructor
 from ..core.utlis import api_response
 
@@ -198,11 +199,11 @@ class LessonListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         course_id = self.kwargs['course_id']
-        return Lesson.objects.filter(course__id=course_id)
+        return Lesson.objects.filter(course__id=course_id, is_active=True)
 
     def perform_create(self, serializer):
         course_id = self.kwargs['course_id']
-        course = Course.objects.get(id=course_id)
+        course = Course.objects.get(id=course_id, is_active=True)
         serializer.save(course=course)
 
 
@@ -227,6 +228,7 @@ class LessonViewSet(viewsets.ModelViewSet):
             queryset = self.get_queryset()
 
         serializer = self.get_serializer(queryset, many=True)
+        # print('data', serializer.data)
         return Response({"data": serializer.data})
 
     def create(self, request, *args, **kwargs):
@@ -249,3 +251,61 @@ class LessonViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         instance.delete()
         return Response({"message": "Lesson deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class LessonUpdateView(generics.UpdateAPIView):
+    queryset = Lesson.objects.filter(is_active=True)
+    serializer_class = LessonSerializer
+    # permission_classes = [permissions.IsAuthenticated, IsAdminOrInstructor]
+    parser_classes = [MultiPartParser, FormParser]  # Enable file upload parsing
+    permission_classes = [IsAuthenticated]
+
+    def update(self, request, *args, **kwargs):
+        print('')
+        try:
+            # Call the parent update method
+            response = super().update(request, *args, **kwargs)
+
+            # Log the successful update
+            logger.info(f"Lesson with ID {kwargs.get('pk')} updated successfully")
+            return Response({
+                "status": "success",
+                "message": "Lesson updated successfully.",
+                "data": response.data,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Log the exception
+            logger.error(f"Error updating lesspn with ID {kwargs.get('pk')}: {str(e)}")
+            print('error', e)
+            # Return a structured error response
+            return Response({
+                "status": "error",
+                "message": "An error occurred while updating the lesson.",
+                "errors": {"detail": str(e)},
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LessonDeleteView(generics.UpdateAPIView):
+    queryset = Lesson.objects.filter(is_active=True)
+    serializer_class = LessonDeleteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        # Automatically set is_active to False
+        request.data['is_active'] = False
+
+        response = super().patch(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            return Response({
+                "status": "success",
+                "message": "Lesson deactivated successfully.",
+                "data": response.data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "status": "error",
+                "message": "Failed to deactivate lesson.",
+                "errors": response.data
+            }, status=status.HTTP_400_BAD_REQUEST)
