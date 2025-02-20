@@ -86,8 +86,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True)
-    phone_number = serializers.CharField(write_only=True, required=False)
-    address = serializers.CharField(write_only=True, required=False)
+    phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    address = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -103,11 +103,15 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         phone_number = validated_data.pop('phone_number', None)
         address = validated_data.pop('address', None)
 
-        validated_data.pop('confirm_password')  # Remove password2 from data
+        validated_data.pop('confirm_password')  # Remove confirm_password from data
         user = User.objects.create_user(**validated_data)  # Create user
 
-        # Create profile if phone_number or address is provided
-        Profile.objects.create(user=user, phone_number=phone_number, address=address)
+        # Create profile only if phone_number or address is provided
+        Profile.objects.create(
+            user=user,
+            phone_number=phone_number if phone_number else None,
+            address=address if address else None
+        )
 
         return user
 
