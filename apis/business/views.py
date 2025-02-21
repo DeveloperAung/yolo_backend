@@ -10,12 +10,12 @@ from .serializers import BusinessSerializer, CarouselSerializer, BankInfoSeriali
 
 
 class BusinessViewSet(viewsets.ModelViewSet):
-    queryset = Business.objects.filter(is_active=True).first()
+    queryset = Business.objects.filter(is_active=True)
     serializer_class = BusinessSerializer
     # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Business.objects.filter(is_active=True)
+        return Business.objects.filter(is_active=True).first()
 
     def retrieve(self, request, *args, **kwargs):
         business = Business.objects.filter(is_active=True).first()
