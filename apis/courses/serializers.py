@@ -8,6 +8,7 @@ from ..users.serializers import UserSerializer
 
 
 class LessonSerializer(serializers.ModelSerializer):
+    video = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
@@ -15,6 +16,15 @@ class LessonSerializer(serializers.ModelSerializer):
             'id', 'title', 'content', 'video', 'duration', 'is_demo', 'course', 'order'
         ]
         read_only_fields = ['course']
+
+    def get_video(self, obj):
+        request = self.context.get('request')
+        if obj.video:
+            relative_url = obj.video.url  # This is usually a relative URL
+            if request:
+                return request.build_absolute_uri(relative_url)
+            return relative_url
+        return ''
 
     def validate(self, data):
         if 'title' in data and len(data['title']) < 3:
@@ -60,7 +70,7 @@ class CourseListSerializer(serializers.ModelSerializer):
     def get_lessons(self, obj):
         # Get only active lessons (is_active=True)
         active_lessons = obj.lessons.filter(is_active=True)
-        return LessonSerializer(active_lessons, many=True).data
+        return LessonSerializer(active_lessons, many=True, context=self.context).data
 
     def get_instructor_username(self, obj):
         return obj.instructor.username if obj.instructor else None

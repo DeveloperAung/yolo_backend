@@ -208,3 +208,13 @@ class PasswordChangeSerializer(serializers.Serializer):
         instance.set_password(validated_data['new_password'])
         instance.save()
         return instance
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    pin = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(write_only=True)

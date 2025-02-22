@@ -9,9 +9,13 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.db.models import F
 from django.conf import settings
+from django.core.mail import send_mail
+from django.utils.crypto import get_random_string
+from .models import PasswordReset
 from .permissions import IsAdminUserOnly, IsAdminOrInstructor
 from .serializers import UserSerializer, UserCreateSerializer, CustomTokenObtainPairSerializer, UserRegisterSerializer, \
-    UserLoginSerializer, PasswordChangeSerializer, AdminUserCreateSerializer
+    UserLoginSerializer, PasswordChangeSerializer, AdminUserCreateSerializer, ResetPasswordSerializer, \
+    ForgotPasswordSerializer
 import logging
 from PIL import Image
 import io
@@ -461,3 +465,70 @@ class InstructorListView(APIView):
                 errors={"detail": str(e)},
                 http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Generate a 6-digit numeric PIN
+            pin = get_random_string(length=6, allowed_chars='0123456789')
+            # print('generated pin', pin)
+            # Save the PIN in our PasswordReset model
+            PasswordReset.objects.create(user=user, pin=pin)
+            # print('created_password-reset', settings.EMAIL_HOST_USER)
+            # Send the PIN to the user's email
+            send_mail(
+                'Password Reset PIN',
+                f'Your password reset PIN is {pin}',
+                settings.EMAIL_HOST_USER,  # Replace with your sender email
+                [email],
+                fail_silently=False,
+            )
+            # print('email send completed')
+            return Response({"detail": "PIN sent to email"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            pin = serializer.validated_data['pin']
+            new_password = serializer.validated_data['new_password']
+
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Find the latest unused PIN for the user
+            try:
+                reset_instance = PasswordReset.objects.filter(user=user, pin=pin, is_used=False).latest('created_at')
+            except PasswordReset.DoesNotExist:
+                return Response({"detail": "Invalid PIN"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not reset_instance.is_valid():
+                return Response({"detail": "PIN expired or already used"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Set the new password
+            user.set_password(new_password)
+            user.save()
+
+            # Mark the PIN as used
+            reset_instance.is_used = True
+            reset_instance.save()
+
+            return Response({"detail": "Password reset successful"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -7,6 +7,9 @@ urlpatterns = [
     path('login/', LoginAPIView.as_view(), name='login'),
     path('password/change/', PasswordChangeAPIView.as_view(), name='password-change'),
 
+    path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
+
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', LogoutView.as_view(), name='logout'),
