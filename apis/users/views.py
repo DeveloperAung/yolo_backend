@@ -1,3 +1,5 @@
+from google.auth.transport import requests
+from google.oauth2 import id_token
 from rest_framework.exceptions import NotFound
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
@@ -532,3 +534,91 @@ class ResetPasswordView(APIView):
 
             return Response({"detail": "Password reset successful"}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+GOOGLE_CLIENT_ID = "230980647742-6v9bp4ovcp0s0bkqgnstgrl4o8juhgbe.apps.googleusercontent.com"
+
+
+# class GoogleAuthAPIView(APIView):
+#     permission_classes = [AllowAny]
+#
+#     def post(self, request, *args, **kwargs):
+#         token = request.data.get('id_token')
+#         if not token:
+#             return Response({"error": "No token provided."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         try:
+#             # Verify Google ID token
+#             idinfo = id_token.verify_oauth2_token(token, requests.Request(), GOOGLE_CLIENT_ID)
+#
+#             email = idinfo.get('email')
+#             name = idinfo.get('name')
+#             avatar = idinfo.get('picture')
+#
+#             # Check if user exists, otherwise create one
+#             user, created = User.objects.get_or_create(email=email,
+#                                                        defaults={"username": email.split("@")[0], "fullname": name})
+#
+#             # Generate JWT tokens
+#             refresh = RefreshToken.for_user(user)
+#             access = refresh.access_token
+#
+#             return Response({
+#                 "status": "success",
+#                 "message": "Login successful",
+#                 "data": {
+#                     "id": user.id,
+#                     "username": user.username,
+#                     "role": user.role if hasattr(user, 'role') else "user",
+#                     "access_token": str(access),
+#                     "refresh_token": str(refresh),
+#                     "avatar": avatar,
+#                 },
+#             }, status=status.HTTP_200_OK)
+#
+#         except ValueError as exc:
+#             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GoogleAuthAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        token = request.data.get('id_token')
+        if not token:
+            return Response({"status": "error", "message": "No token provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Verify Google ID token
+            idinfo = id_token.verify_oauth2_token(token, requests.Request(), GOOGLE_CLIENT_ID)
+
+            email = idinfo.get('email')
+            name = idinfo.get('name')
+            avatar = idinfo.get('picture')
+
+            # ✅ Check if user exists, otherwise create one
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={"username": email.split("@")[0], "fullname": name}
+            )
+
+            # ✅ Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access = refresh.access_token
+
+            return Response({
+                "status": "success",
+                "message": "Login successful",
+                "data": {
+                    "id": user.id,
+                    "username": user.username,
+                    "role": user.role if hasattr(user, 'role') else "user",
+                    "access_token": str(access),
+                    "refresh_token": str(refresh),
+                    "avatar": avatar,
+                },
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as exc:
+            return Response({"status": "error", "message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        

@@ -19,6 +19,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from apis.users.views import GoogleAuthAPIView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/user/', include('apis.users.urls')),
@@ -26,4 +28,10 @@ urlpatterns = [
     path('api/cart/', include('apis.cart.urls')),
     path('api/order/', include('apis.orders.urls')),
     path('api/business/', include('apis.business.urls')),
+
+    path('api/dj-rest-auth/', include('dj_rest_auth.urls')),
+    path('api/dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
+    path('api/dj-rest-auth/social/', include('dj_rest_auth.urls')),
+    path('api/google-auth/', GoogleAuthAPIView.as_view(), name='google-auth'),
+    path('api/accounts/', include('allauth.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -22,7 +22,7 @@ class User(AbstractUser):
         (STUDENT, 'Student'),
         (INSTRUCTOR, 'Instructor'),
     ]
-
+    fullname = models.CharField(max_length=255, blank=True, null=True)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default=STUDENT)
     is_locked = models.BooleanField(default=False)
     email = models.EmailField(unique=True)
