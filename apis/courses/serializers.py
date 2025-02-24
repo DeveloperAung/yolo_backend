@@ -9,11 +9,12 @@ from ..users.serializers import UserSerializer
 
 class LessonSerializer(serializers.ModelSerializer):
     video = serializers.SerializerMethodField()
+    course_id = serializers.IntegerField(write_only=True)
 
     class Meta:
         model = Lesson
         fields = [
-            'id', 'title', 'content', 'video', 'duration', 'is_demo', 'course', 'order'
+            'id', 'title', 'content', 'video', 'duration', 'is_demo', 'course', 'course_id', 'order'
         ]
         read_only_fields = ['course']
 

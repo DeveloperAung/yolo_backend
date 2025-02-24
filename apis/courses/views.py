@@ -199,12 +199,21 @@ class LessonListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         course_id = self.kwargs['course_id']
+        print('course id', course_id)
         return Lesson.objects.filter(course__id=course_id, is_active=True)
 
     def perform_create(self, serializer):
         course_id = self.kwargs['course_id']
-        course = Course.objects.get(id=course_id, is_active=True)
-        serializer.save(course=course)
+        print('course id 1', course_id)
+        try:
+            course = Course.objects.get(id=course_id, is_active=True)
+            serializer.save(course=course)
+        except ObjectDoesNotExist:
+            print('"error": "Course not found or inactive."')
+            raise ValidationError({"error": "Course not found or inactive."})
+        except Exception as e:
+            print("error", e)
+            raise ValidationError({"error": f"An unexpected error occurred: {str(e)}"})
 
 
 class LessonDetailView(generics.RetrieveUpdateAPIView):
@@ -221,31 +230,59 @@ class LessonViewSet(viewsets.ModelViewSet):
     serializer_class = LessonSerializer
 
     def list(self, request, *args, **kwargs):
-        course_id = request.query_params.get('course', None)
-        if course_id:
-            queryset = Lesson.objects.filter(course_id=course_id, is_active=True)
-        else:
-            queryset = self.get_queryset()
+        try:
+            course_id = request.query_params.get('course_id', None)
+            if course_id:
+                queryset = Lesson.objects.filter(course_id=course_id, is_active=True)
+            else:
+                queryset = self.get_queryset()
 
-        serializer = self.get_serializer(queryset, many=True)
-        # print('data', serializer.data)
-        return Response({"data": serializer.data})
+            serializer = self.get_serializer(queryset, many=True)
+            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": f"An error occurred while retrieving lessons: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Lesson created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
-        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = self.get_serializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Lesson created successfully", "data": serializer.data},
+                                status=status.HTTP_201_CREATED)
+            print('error', serializers.errors)
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            print('error', e)
+            return Response({"error": f"Database integrity error: {str(e)}"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print('error', e)
+            return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Lesson updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
-        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Lesson updated successfully", "data": serializer.data},
+                                status=status.HTTP_200_OK)
+            return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        except ObjectDoesNotExist:
+            return Response({"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND)
+        except IntegrityError as e:
+            return Response({"error": f"Database integrity error: {str(e)}"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

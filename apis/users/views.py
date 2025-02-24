@@ -70,7 +70,7 @@ class LoginView(APIView):
             "modified_on": user.modified_on,
         }
         logger.info(f"User {username} logged in successfully.")
-        print('avatar url', user_data['avatar'])
+        # print('avatar url', user_data['avatar'])
         return api_response(
             status="success",
             message="Login successful.",
@@ -154,7 +154,7 @@ class UserListAPIView(APIView):
                 if user["avatar"]:
                     user["avatar"] = request.build_absolute_uri(settings.MEDIA_URL + user["avatar"])
 
-            print('user_list', user_list)
+            # print('user_list', user_list)
             return Response(
                 {
                     "status": "success",
@@ -243,7 +243,7 @@ class LoginAPIView(APIView):
     def post(self, request):
         # print('inside post', request.data)
         serializer = UserLoginSerializer(data=request.data, context={"request": request})
-        print('request data', request.data)
+        # print('request data', request.data)
         if serializer.is_valid():
             print('serializer data', serializer.data)
             return Response(
@@ -340,7 +340,6 @@ class UserUpdateView(APIView):
         print('is not valid', serializer.errors)
         return Response({"status": "error", "message": "Failed to update user.", "errors": serializer.errors},
                         status=status.HTTP_400_BAD_REQUEST)
-
 
     def _resize_image(self, image_file):
         """Resizes image to reduce file size if larger than 5MB."""

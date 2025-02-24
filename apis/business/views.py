@@ -15,14 +15,22 @@ class BusinessViewSet(viewsets.ModelViewSet):
     # permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Business.objects.filter(is_active=True).first()
+        return Business.objects.filter(is_active=True)
 
-    def retrieve(self, request, *args, **kwargs):
+    def get_object(self):
         business = Business.objects.filter(is_active=True).first()
         if not business:
-            return Response({"status": "error", "message": "No active business found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = self.get_serializer(business)
-        return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+            raise NotFound({"status": "error", "message": "No active business found"})
+        return business
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            business = self.get_object()
+            serializer = self.get_serializer(business)
+            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print('error', e)
+            return Response({"status": "fail", "data": e})
 
     def partial_update(self, request, *args, **kwargs):
         business = Business.objects.filter(is_active=True).first()
